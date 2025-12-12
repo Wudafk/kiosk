@@ -4,184 +4,129 @@
     <title>Kiosk Web Content</title>
 </head>
 <body>
-    <h1>Управление Android из JS</h1>
+<h1>Управление Android из JS</h1>
 
-    <button onclick="sendToast()">Показать Android Toast</button>
-    <button onclick="requestDeviceId()">Запросить ID устройства</button>
-    <button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
+<button onclick="sendToast()">Показать Android Toast</button>
+<button onclick="requestDeviceId()">Запросить ID устройства</button>
+<button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
 
-    <p id="device-id-display">ID устройства: Ожидание...</p>
-    <p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!!!</p>
-    
-    <script>
-        const PRINTER_VID = 1008; 
-        const PRINTER_PID = 15127;
-        
-        function sendToast() {
-            // Проверяем, существует ли объект AndroidBridge (доступен только в WebView)
-            if (typeof AndroidBridge !== 'undefined') {
-                AndroidBridge.showToast('Успешно вызвано из HTML!');
-            } else {
-                alert('Объект AndroidBridge недоступен (не в WebView).');
-            }
+<p id="device-id-display">ID устройства: Ожидание...</p>
+<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!</p>
+
+<script>
+    const PRINTER_VID = 1008;
+    const PRINTER_PID = 15127;
+
+    function sendToast() {
+        // Проверяем, существует ли объект AndroidBridge (доступен только в WebView)
+        if (typeof AndroidBridge !== 'undefined') {
+            AndroidBridge.showToast('Успешно вызвано из HTML!');
+        } else {
+            alert('Объект AndroidBridge недоступен (не в WebView).');
         }
-
-        function requestDeviceId() {
-            if (typeof AndroidBridge !== 'undefined') {
-                // Прямой вызов Kotlin-метода, который возвращает значение
-                const deviceId = AndroidBridge.getDeviceId();
-                
-                document.getElementById('device-id-display').innerText = 
-                    'ID устройства: ' + deviceId;
-
-            } else {
-                document.getElementById('device-id-display').innerText = 
-                    'ID устройства: Ошибка (Bridge недоступен).';
-            }
-        }
-        
-    // function printNewReceipt() {
-    //     if (typeof AndroidBridge === 'undefined') return;
-
-    //     // 1. КОДИРОВАНИЕ КОМАНДЫ ESC/POS В JAVASCRIPT
-    //     //   - 27, 69: Включить жирный шрифт (ESC E)
-    //     //   - 10: Перевод строки
-    //     //   - 27, 100, 4: Подать бумагу и отрезать (ESC d 4)
-        
-    //     const esc = 27;
-    //     const printCommands = new Uint8Array([
-    //         esc, 69, // Включить жирный шрифт
-    //         ...new TextEncoder().encode("ЗАГОЛОВОК ЧЕКА\n"),
-    //         esc, 70, // Выключить жирный шрифт
-    //         ...new TextEncoder().encode("Товар: 100.00 руб.\n"),
-    //         10, 10, 10, // 3 пустые строки
-    //         esc, 100, 4 // Команда отрезки бумаги
-    //     ]);
-
-    //     // 2. ПРЕОБРАЗОВАНИЕ БАЙТОВ В BASE64 (для передачи через JSON)
-    //     // Нам нужна библиотека Base64 в JS (или используем встроенные методы, если возможно)
-    //     // Для простоты, допустим, у нас есть функция arrayBufferToBase64:
-    //     const base64Data = btoa(String.fromCharCode(...printCommands)); 
-    //     // (btoa/atob работает только с 8-битными символами, для сложных байтов лучше использовать специализированную JS библиотеку Base64)
-
-    //     // 3. Формирование универсального JSON-объекта команды
-    //     const command = {
-    //         action: "USB_IO_COMMAND", // Ваш универсальный action
-    //         parameters: {
-    //             vid: PRINTER_VID,       // VID принтера
-    //             pid: PRINTER_PID,      // PID принтера
-    //             data: base64Data // Байт-код команды в Base64
-    //         }
-    //     };
-
-    //     try {
-    //         AndroidBridge.executeCommand(JSON.stringify(command));
-    //         console.log("Команда печати отправлена через универсальный USB-интерфейс.");
-    //     } catch (e) {
-    //         console.error("Ошибка вызова Bridge:", e);
-    //     }
-    // }
-
-// ВАЖНАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ БАЙТОВ
-function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        // Мы используем String.fromCharCode для корректной работы с сырыми байтами
-        binary += String.fromCharCode(bytes[i]);
     }
-    // Кодируем полученную строку в Base64
-    return btoa(binary);
-}
 
-function printNewReceipt() {
-    if (typeof AndroidBridge === 'undefined') {
-        handleNativeResult("AndroidBridge === null");
-         return;   
+    function requestDeviceId() {
+        if (typeof AndroidBridge !== 'undefined') {
+            // Прямой вызов Kotlin-метода, который возвращает значение
+            const deviceId = AndroidBridge.getDeviceId();
+
+            document.getElementById('device-id-display').innerText =
+                'ID устройства: ' + deviceId;
+
+        } else {
+            document.getElementById('device-id-display').innerText =
+                'ID устройства: Ошибка (Bridge недоступен).';
+        }
     }
-    handleNativeResult("Print command called.");
 
-    // --- 1. Формирование команд PCL ---
-    const esc = 27;
-    const formFeed = 12; // Команда выброса страницы (печать)
 
-    const textToPrint = 
-        "*** ТЕСТОВАЯ ПЕЧАТЬ HP LASERJET M1005 ***\r\n" +
-        "Устройство VID: 1008, PID: 15127\r\n" +
-        "PCL-команды успешно отправлены через Kiosk Bridge.\r\n" +
-        "---------------------------------------\r\n" +
-        "Если вы видите этот текст, то универсальный USB I/O работает!\r\n\r\n";
-
-    let printCommands = [];
-
-    // 1. Сброс принтера (ESC E)
-    printCommands.push(esc, 69); 
-    
-    // 2. Отправка текста (Важно: PCL требует \r\n для корректного перевода строки)
-    const textBytes = new TextEncoder().encode(textToPrint);
-    printCommands.push(...textBytes);
-    
-    // 3. Выброс страницы (Form Feed) - инициирует фактическую печать
-    printCommands.push(formFeed);
-
-    const dataBuffer = new Uint8Array(printCommands);
-
-    // --- 2. Кодирование в Base64 ---
-    const base64Data = arrayBufferToBase64(dataBuffer); 
-    
-    // --- 3. Формирование универсального JSON-объекта команды ---
-    const command = {
-        action: "USB_IO_COMMAND", // Ваш универсальный action
-        parameters: {
-            vid: PRINTER_VID,
-            pid: PRINTER_PID,
-            data: base64Data // Байты PCL-команд в Base64
+    // ВАЖНАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ БАЙТОВ
+    function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            // Мы используем String.fromCharCode для корректной работы с сырыми байтами
+            binary += String.fromCharCode(bytes[i]);
         }
-    };
-
-    try {
-        AndroidBridge.executeCommand(JSON.stringify(command));
-        console.log("Команда печати PCL отправлена.");
-    } catch (e) {
-        console.error("Ошибка вызова Bridge:", e);
+// Кодируем полученную строку в Base64
+        return btoa(binary);
     }
-}
 
-        /**
-         * Принимает результат выполнения команды от Kotlin.
-         * @param result Сообщение об успехе или ошибке.
-         */
-        function handleNativeResult(result) {
-            const statusElement = document.getElementById('native-status');
-            
-            statusElement.innerText = "Статус: " + result;
+    function printNewReceipt() {
+        if (typeof AndroidBridge === 'undefined') {
+            handleNativeResult("Error: AndroidBridge === null");
+            return;
+        }
+        handleNativeResult("Print command called.");
 
-            // Если сообщение содержит "Error" (например, USB Error), делаем его красным
-            if (result.includes("Error")) {
-                statusElement.style.color = "red";
-                console.error("Нативная ошибка:", result);
-            } else {
-                statusElement.style.color = "green";
-                console.log("Нативный успех:", result);
+// --- 1. Формирование команд PCL ---
+        const esc = 27;
+        const formFeed = 12; // Команда выброса страницы (печать)
+
+        const textToPrint =
+            "*** ТЕСТОВАЯ ПЕЧАТЬ HP LASERJET M1005 ***\r\n" +
+            "Устройство VID: 1008, PID: 15127\r\n" +
+            "PCL-команды успешно отправлены через Kiosk Bridge.\r\n" +
+            "---------------------------------------\r\n" +
+            "Если вы видите этот текст, то универсальный USB I/O работает!\r\n\r\n";
+
+        let printCommands = [];
+
+// 1. Сброс принтера (ESC E)
+        printCommands.push(esc, 69);
+
+// 2. Отправка текста (Важно: PCL требует \r\n для корректного перевода строки)
+        const textBytes = new TextEncoder().encode(textToPrint);
+        printCommands.push(...textBytes);
+
+// 3. Выброс страницы (Form Feed) - инициирует фактическую печать
+        printCommands.push(formFeed);
+
+        const dataBuffer = new Uint8Array(printCommands);
+
+// --- 2. Кодирование в Base64 ---
+        const base64Data = arrayBufferToBase64(dataBuffer);
+
+// --- 3. Формирование универсального JSON-объекта команды ---
+        const command = {
+            action: "USB_IO_COMMAND", // Ваш универсальный action
+            parameters: {
+                vid: PRINTER_VID,
+                pid: PRINTER_PID,
+                data: base64Data // Байты PCL-команд в Base64
             }
+        };
+
+        try {
+            AndroidBridge.executeCommand(JSON.stringify(command));
+            // Меняем статус сразу после отправки команды
+            document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку...";
+            document.getElementById('native-status').style.color = "orange";
+        } catch (e) {
+            console.error("Ошибка вызова Bridge:", e);
         }
-        
-        // Обновляем printNewReceipt для вывода стартового сообщения
-        function printNewReceipt() {
-            if (typeof AndroidBridge === 'undefined') return;
-            
-            // ... (весь код формирования команды) ...
-            
-            try {
-                AndroidBridge.executeCommand(JSON.stringify(command));
-                // Меняем статус сразу после отправки команды
-                document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку...";
-                document.getElementById('native-status').style.color = "orange";
-            } catch (e) {
-                console.error("Ошибка вызова Bridge:", e);
-            }
+    }
+
+    /**
+     * Принимает результат выполнения команды от Kotlin.
+     * @param result Сообщение об успехе или ошибке.
+     */
+    function handleNativeResult(result) {
+        const statusElement = document.getElementById('native-status');
+
+        statusElement.innerText = "Статус: " + result;
+
+        // Если сообщение содержит "Error" (например, USB Error), делаем его красным
+        if (result.includes("Error")) {
+            statusElement.style.color = "red";
+            console.error("Нативная ошибка:", result);
+        } else {
+            statusElement.style.color = "green";
+            console.log("Нативный успех:", result);
         }
-    </script>
+    }
+</script>
 </body>
 </html>
