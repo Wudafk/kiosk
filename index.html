@@ -13,6 +13,9 @@
     <p id="device-id-display">ID устройства: Ожидание...</p>
 
     <script>
+        const PRINTER_VID = 1008; 
+        const PRINTER_PID = 15127;
+        
         function sendToast() {
             // Проверяем, существует ли объект AndroidBridge (доступен только в WebView)
             if (typeof AndroidBridge !== 'undefined') {
@@ -64,8 +67,8 @@
         const command = {
             action: "USB_IO_COMMAND", // Ваш универсальный action
             parameters: {
-                vid: 1155,       // VID принтера
-                pid: 22338,      // PID принтера
+                vid: PRINTER_VID,       // VID принтера
+                pid: PRINTER_PID,      // PID принтера
                 data: base64Data // Байт-код команды в Base64
             }
         };
