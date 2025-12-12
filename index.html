@@ -11,7 +11,8 @@
     <button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
 
     <p id="device-id-display">ID устройства: Ожидание...</p>
-
+    <p id="native-status" style="color: red; font-weight: bold;">Статус: Готов</p> <script>
+    
     <script>
         const PRINTER_VID = 1008; 
         const PRINTER_PID = 15127;
@@ -142,6 +143,41 @@ function printNewReceipt() {
         console.error("Ошибка вызова Bridge:", e);
     }
 }
+
+        /**
+         * Принимает результат выполнения команды от Kotlin.
+         * @param result Сообщение об успехе или ошибке.
+         */
+        function handleNativeResult(result) {
+            const statusElement = document.getElementById('native-status');
+            
+            statusElement.innerText = "Статус: " + result;
+
+            // Если сообщение содержит "Error" (например, USB Error), делаем его красным
+            if (result.includes("Error")) {
+                statusElement.style.color = "red";
+                console.error("Нативная ошибка:", result);
+            } else {
+                statusElement.style.color = "green";
+                console.log("Нативный успех:", result);
+            }
+        }
+        
+        // Обновляем printNewReceipt для вывода стартового сообщения
+        function printNewReceipt() {
+            if (typeof AndroidBridge === 'undefined') return;
+            
+            // ... (весь код формирования команды) ...
+            
+            try {
+                AndroidBridge.executeCommand(JSON.stringify(command));
+                // Меняем статус сразу после отправки команды
+                document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку...";
+                document.getElementById('native-status').style.color = "orange";
+            } catch (e) {
+                console.error("Ошибка вызова Bridge:", e);
+            }
+        }
     </script>
 </body>
 </html>
