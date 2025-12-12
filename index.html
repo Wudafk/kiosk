@@ -96,7 +96,10 @@ function arrayBufferToBase64(buffer) {
 }
 
 function printNewReceipt() {
-    if (typeof AndroidBridge === 'undefined') return;
+    if (typeof AndroidBridge === 'undefined') {
+        handleNativeResult("AndroidBridge === null");
+         return;   
+    }
 
     // --- 1. Формирование команд PCL ---
     const esc = 27;
