@@ -11,7 +11,7 @@
 <button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
 
 <p id="device-id-display">ID устройства: Ожидание...</p>
-<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!!!</p>
+<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!!</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -102,9 +102,14 @@
         // 5. Выброс страницы (Form Feed) - инициирует фактическую печать
         printCommands.push(formFeed);
 
-        // 6. КОНЕЦ ЗАДАНИЯ (PJL End)
+        // НОВОЕ: Переключение из режима PCL обратно в PJL (Обязательно для закрытия сессии)
         printCommands.push(...UEL); // ESC %-12345X
+
+        // 6. КОНЕЦ ЗАДАНИЯ (PJL End)
         printCommands.push(...new TextEncoder().encode("@PJL EOJ\r\n")); // End Of Job
+
+        // НОВОЕ: Отправьте еще один UEL для абсолютного завершения (иногда требуется)
+        printCommands.push(...UEL); // ESC %-12345X
 
         const dataBuffer = new Uint8Array(printCommands);
 
