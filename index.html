@@ -6,7 +6,7 @@
 <body>
 <h1>Инициализация Киоска</h1>
 <div id="usb-device-list">
-    <p>Загрузка статуса USB...</p>
+    <p>Загрузка статуса USB...?!</p>
 </div>
 <script>
     const deviceListContainer = document.getElementById('usb-device-list');
@@ -56,14 +56,15 @@
 
         const button = document.getElementById(`btn-${vid}-${pid}`);
         button.disabled = true;
-        button.innerText = 'Ожидание подтверждения...'; // Пользователь видит это 20 секунд
+        button.innerText = 'Ожидание подтверждения...';
 
         try {
-            // !!! ИСПРАВЛЕНИЕ: ИСПОЛЬЗУЕМ ASYNC, ЧТОБЫ ИЗБЕЖАТЬ БЛОКИРОВКИ UI !!!
-            // Результат будет возвращен через функцию handlePermissionResult
-            const launchStatus = AndroidBridge.executeCommandAsync(JSON.stringify(command), "handlePermissionResult");
+            // !!! ИСПРАВЛЕНИЕ !!!: Используем handleOperationStatus для получения статуса
+            const launchStatus = AndroidBridge.executeCommandAsync(
+                JSON.stringify(command),
+                "handleOperationStatus" // <--- НОВАЯ ФУНКЦИЯ CALLBACK
+            );
 
-            // UI НЕ БЛОКИРУЕТСЯ. JavaScript продолжает выполнение.
             console.log("Запрос разрешения запущен, статус:", launchStatus);
 
         } catch (e) {
@@ -72,7 +73,7 @@
             button.innerText = 'Запросить разрешение';
         }
     }
-    
+
     // 3. ОТОБРАЖЕНИЕ СПИСКА В HTML
     function renderDeviceList(devices) {
         let html = '<h3>Статус USB-устройств:</h3><ul>';
@@ -98,6 +99,19 @@
 
         html += '</ul>';
         deviceListContainer.innerHTML = html;
+    }
+
+    // JS: Функция, которая получит результат выполнения операций (REQUEST_PERMISSION, Печать)
+    function handleOperationStatus(resultString) {
+        if (resultString && resultString.startsWith("USB Error:")) {
+            alert("Ошибка операции: " + resultString);
+        } else {
+            alert("Операция завершена: " + resultString);
+        }
+
+        // После получения статуса (Успех/Ошибка), всегда обновляем список,
+        // чтобы увидеть новый статус разрешения.
+        fetchUsbDevices();
     }
 
     // Запуск при загрузке страницы
