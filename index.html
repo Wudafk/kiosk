@@ -4,390 +4,92 @@
     <title>Kiosk Web Content</title>
 </head>
 <body>
-<h1>Управление Android из JS</h1>
-
-<button onclick="requestUsbSetupPermission()">RequestUsbSetupPermission</button>
-
-<p id="native-status" style="color: green; font-weight: bold;">Статус: Готов...</p>
-
+<h1>Инициализация Киоска</h1>
+<div id="usb-device-list">
+    <p>Загрузка статуса USB...</p>
+</div>
 <script>
-    const PRINTER_VID = 1008;
-    const PRINTER_PID = 15127;
+    const deviceListContainer = document.getElementById('usb-device-list');
 
-    function sendToast() {
-        // Проверяем, существует ли объект AndroidBridge (доступен только в WebView)
-        if (typeof AndroidBridge !== 'undefined') {
-            AndroidBridge.showToast('Успешно вызвано из HTML!');
-        } else {
-            alert('Объект AndroidBridge недоступен (не в WebView).');
-        }
+    // Функция для преобразования строки (если Kotlin возвращает toString())
+    // В реальном приложении здесь должен быть JSON.parse(kotlinResult)
+    function parseKotlinList(str) {
+        // Заглушка, если нет JSON-библиотеки в Kotlin
+        // Предполагаем, что вам нужно будет настроить парсинг под ваш строковый формат.
+        // Идеально: использовать JSON.parse().
+        return [{vid: 1008, pid: 15127, deviceName: "HP Printer", hasPermission: false}];
     }
 
-    function requestDeviceId() {
-        if (typeof AndroidBridge !== 'undefined') {
-            // Прямой вызов Kotlin-метода, который возвращает значение
-            const deviceId = AndroidBridge.getDeviceId();
-
-            document.getElementById('device-id-display').innerText =
-                'ID устройства: ' + deviceId;
-
-        } else {
-            document.getElementById('device-id-display').innerText =
-                'ID устройства: Ошибка (Bridge недоступен).';
-        }
-    }
-
-
-    // ВАЖНАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ БАЙТОВ
-    function arrayBufferToBase64(buffer) {
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            // Мы используем String.fromCharCode для корректной работы с сырыми байтами
-            binary += String.fromCharCode(bytes[i]);
-        }
-// Кодируем полученную строку в Base64
-        return btoa(binary);
-    }
-
-    /**
-     * Отправляет команду печати PJL/PCL на принтер HP LaserJet M1005
-     * через AndroidBridge.executeCommand().
-     */
-    function printNewReceipt() {
-        if (typeof AndroidBridge === 'undefined') {
-            handleNativeResult("Error: AndroidBridge === null");
-            return;
-        }
-
-        const PRINTER_VID = 1008;
-        const PRINTER_PID = 15127;
-// ИСПОЛЬЗУЕМ ИНТЕРФЕЙС 0 (Vendor Specific)
-        const INTERFACE_PRINTER = 0;
-
-        // ИСХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk OUT 0x01)
-        const ENDPOINT_OUT_ADDRESS = 1;
-
-        // ВХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk IN 0x81)
-        const ENDPOINT_IN_ADDRESS = 0x81;
-
-        const esc = 27;
-        const formFeed = 12; // Команда выброса страницы PCL
-        const lineFeed = 10; // Перевод строки PCL (самый надежный)
-
-        // UEL (Universal Exit Language): ESC %-12345X
-        const UEL = new TextEncoder().encode(String.fromCharCode(esc) + "%-12345X");
-        const LF_CHAR = String.fromCharCode(lineFeed); // Используем только LF для перевода
-
-        let printCommands = [];
-
-        // --- 1. НАЧАЛО ЗАДАНИЯ (PJL Header) ---
-        printCommands.push(...UEL);
-        printCommands.push(...new TextEncoder().encode("@PJL JOB\r\n"));
-
-        // 2. УКАЗАНИЕ ЯЗЫКА (Переключение в режим PCL)
-        printCommands.push(...new TextEncoder().encode("@PJL ENTER LANGUAGE=PCL\r\n"));
-
-        // --- 3. PCL КОМАНДЫ ФОРМАТИРОВАНИЯ ---
-
-        // ESC E: Сброс PCL-состояния принтера (обязательно)
-        printCommands.push(esc, 69);
-
-        // ESC &l1O: Установка ориентации в Портретную (Portrait)
-        printCommands.push(esc, 38, 108, 49, 79);
-
-        // УСТАНОВКА ШРИФТА (Courier 10 pitch, 12 point size)
-        // ESC (s0p - сброс текущего шрифта
-        printCommands.push(esc, 40, 115, 48, 112);
-        // ESC (s10h - pitch (10 символов на дюйм)
-        printCommands.push(esc, 40, 115, 49, 48, 104);
-        // ESC (s12v - size (12 пунктов)
-        printCommands.push(esc, 40, 115, 49, 50, 118);
-        // ESC (s0b - stroke weight (нормальный)
-        printCommands.push(esc, 40, 115, 48, 98);
-        // ESC (s3t - шрифт Courier (моноширинный)
-        printCommands.push(esc, 40, 115, 51, 116);
-
-
-        const textToPrint =
-            "*** ТЕСТОВАЯ ПЕЧАТЬ HP LASERJET ***" + LF_CHAR +
-            "VID: 1008, PID: 15127" + LF_CHAR +
-            "PCL ВЕРСИЯ: 5" + LF_CHAR +
-            "------------------------------------" + LF_CHAR +
-            "Текст напечатан с использованием PCL-команд для шрифта Courier." + LF_CHAR +
-            "Это подтверждает работоспособность Bridge и PJL/PCL протокола." + LF_CHAR + LF_CHAR + LF_CHAR;
-
-
-        // 4. Отправка текста (Используем LF_CHAR для перевода строки)
-        printCommands.push(...new TextEncoder().encode(textToPrint));
-
-        // 5. Выброс страницы (Form Feed) - инициирует фактическую печать
-        printCommands.push(formFeed);
-
-        // --- 6. КОНЕЦ ЗАДАНИЯ (PJL End) ---
-        // Переключение из PCL обратно в PJL
-        printCommands.push(...UEL);
-        // Конец задания PJL
-        printCommands.push(...new TextEncoder().encode("@PJL EOJ\r\n"));
-        // Двойное завершение для надежности
-        printCommands.push(...UEL);
-
-        const dataBuffer = new Uint8Array(printCommands);
-
-        // --- 7. Кодирование в Base64 и отправка ---
-        const base64Data = arrayBufferToBase64(dataBuffer);
-
+    // 1. ПОЛУЧЕНИЕ СПИСКА УСТРОЙСТВ
+    function fetchUsbDevices() {
         const command = {
             action: "USB_IO_COMMAND",
-            parameters: {
-                vid: PRINTER_VID,
-                pid: PRINTER_PID,
-                interface_index: INTERFACE_PRINTER,      // <-- НОВЫЙ ИНТЕРФЕЙС
-                endpoint_address_out: ENDPOINT_OUT_ADDRESS, // <-- НОВЫЙ OUT
-                endpoint_address_in: ENDPOINT_IN_ADDRESS,  // <-- НОВЫЙ IN
-                data: base64Data
-            }
+            parameters: { action_type: "GET_DEVICES" }
         };
 
         try {
-            AndroidBridge.executeCommand(JSON.stringify(command));
-            document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку (Ожидаем печати)...";
-            document.getElementById('native-status').style.color = "orange";
+            const resultString = AndroidBridge.executeCommand(JSON.stringify(command));
+            // В идеале: const devices = JSON.parse(resultString);
+            const devices = parseKotlinList(resultString); // Временно
+            renderDeviceList(devices);
         } catch (e) {
-            console.error("Ошибка вызова Bridge:", e);
+            deviceListContainer.innerHTML = `<p style="color: red;">Ошибка загрузки USB: ${e.message}</p>`;
         }
     }
 
-    /**
-     * Отправляет минимальное задание PJL/PCL на принтер HP LaserJet M1005.
-     * Используется для быстрой диагностики, исключающей ошибки форматирования шрифта.
-     */
-    function printMinimalReceipt() {
-        if (typeof AndroidBridge === 'undefined') {
-            handleNativeResult("Error: AndroidBridge === null");
-            return;
-        }
-
-        const PRINTER_VID = 1008;
-        const PRINTER_PID = 15127;
-// ИСПОЛЬЗУЕМ ИНТЕРФЕЙС 0 (Vendor Specific)
-        const INTERFACE_PRINTER = 0;
-
-        // ИСХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk OUT 0x01)
-        const ENDPOINT_OUT_ADDRESS = 1;
-
-        // ВХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk IN 0x81)
-        const ENDPOINT_IN_ADDRESS = 0x81;
-
-        const esc = 27;
-        const formFeed = 12; // Команда выброса страницы PCL
-
-        // UEL (Universal Exit Language): ESC %-12345X
-        const UEL = new TextEncoder().encode(String.fromCharCode(esc) + "%-12345X");
-
-        let printCommands = [];
-
-        // --- 1. НАЧАЛО ЗАДАНИЯ (PJL Header) ---
-        printCommands.push(...UEL);
-        printCommands.push(...new TextEncoder().encode("@PJL JOB\r\n"));
-
-        // 2. УКАЗАНИЕ ЯЗЫКА (Переключение в режим PCL)
-        printCommands.push(...new TextEncoder().encode("@PJL ENTER LANGUAGE=PCL\r\n"));
-
-        // --- 3. PCL КОМАНДЫ ---
-
-        // ESC E: Сброс PCL-состояния принтера (обязательно)
-        printCommands.push(esc, 69);
-
-        // ESC &l26A: Установка формата A4 (Критично, если принтер ждет размер страницы)
-        // 26 - это код для A4
-        printCommands.push(esc, 38, 108, 50, 54, 65);
-
-        const textToPrint =
-            "*** МИНИМАЛЬНЫЙ ТЕСТ: HP LaserJet M1005 ***\r\n" +
-            "VID: 1008, PID: 15127\r\n" +
-            "----------------------------------------\r\n" +
-            "Если вы видите этот текст, то PJL/PCL РАБОТАЕТ! \r\n" +
-            "Следующий шаг - настройка шрифтов.\r\n\r\n\r\n";
-
-
-        // 4. Отправка текста (Используем \r\n, так как нет конфликтов шрифтов)
-        printCommands.push(...new TextEncoder().encode(textToPrint));
-
-        // 5. Выброс страницы (Form Feed) - инициирует фактическую печать
-        printCommands.push(formFeed);
-
-        // --- 6. КОНЕЦ ЗАДАНИЯ (PJL End) ---
-        // Переключение из PCL обратно в PJL
-        printCommands.push(...UEL);
-        // Конец задания PJL
-        printCommands.push(...new TextEncoder().encode("@PJL EOJ\r\n"));
-        // Двойное завершение
-        printCommands.push(...UEL);
-
-        const dataBuffer = new Uint8Array(printCommands);
-
-        // --- 7. Кодирование в Base64 и отправка ---
-        const base64Data = arrayBufferToBase64(dataBuffer);
-
+    // 2. ОТПРАВКА ЗАПРОСА РАЗРЕШЕНИЯ
+    function requestPermission(vid, pid) {
         const command = {
             action: "USB_IO_COMMAND",
-            parameters: {
-                vid: PRINTER_VID,
-                pid: PRINTER_PID,
-                interface_index: INTERFACE_PRINTER,      // <-- НОВЫЙ ИНТЕРФЕЙС
-                endpoint_address_out: ENDPOINT_OUT_ADDRESS, // <-- НОВЫЙ OUT
-                endpoint_address_in: ENDPOINT_IN_ADDRESS,  // <-- НОВЫЙ IN
-                data: base64Data
-            }
+            parameters: { action_type: "REQUEST_PERMISSION", vid: vid, pid: pid }
         };
 
-        try {
-            AndroidBridge.executeCommand(JSON.stringify(command));
-            document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку (Ожидаем печати)...";
-            document.getElementById('native-status').style.color = "orange";
-        } catch (e) {
-            console.error("Ошибка вызова Bridge:", e);
-        }
-    }
-
-    /**
-     * Отправляет минимальное задание PCL (без PJL-заголовков) на принтер HP LaserJet M1005.
-     * Используется для проверки протокола RAW-порта и исключения конфликтов PJL.
-     */
-    function printRawPcl() {
-        if (typeof AndroidBridge === 'undefined') {
-            handleNativeResult("Error: AndroidBridge === null");
-            return;
-        }
-
-        // --- КОНФИГУРАЦИЯ USB ИЗ АНАЛИЗАТОРА ---
-        // Используем Интерфейс 1, так как он объявлен как USB_CLASS_PRINTER
-        const PRINTER_VID = 1008;
-        const PRINTER_PID = 15127;
-
-        const INTERFACE_PRINTER = 1;
-        const ENDPOINT_OUT_ADDRESS = 2;  // Bulk OUT 0x02
-        const ENDPOINT_IN_ADDRESS = 0x82; // Bulk IN 0x82 (для чтения статуса)
-
-        const esc = 27; // ESC (Escape)
-        const formFeed = 12; // Form Feed (Выброс страницы, инициирует печать)
-        const lineFeed = 10; // Line Feed (Перевод строки PCL)
-        const LF_CHAR = String.fromCharCode(lineFeed);
-
-        let printCommands = [];
-
-        // --- 1. PCL КОМАНДЫ ---
-
-        // ESC E: Сброс PCL-состояния принтера (обязательно)
-        printCommands.push(esc, 69);
-
-        // ESC &l26A: Установка формата A4 (Критично)
-        printCommands.push(esc, 38, 108, 50, 54, 65);
-
-        // ESC &l1O: Установка ориентации в Портретную (Portrait)
-        printCommands.push(esc, 38, 108, 49, 79);
-
-        // УСТАНОВКА ШРИФТА (Courier 10 cpi)
-        // ESC (s10h - pitch (10 символов на дюйм)
-        printCommands.push(esc, 40, 115, 49, 48, 104);
-        // ESC (s3t - шрифт Courier
-        printCommands.push(esc, 40, 115, 51, 116);
-
-        const textToPrint =
-            "*** ФИНАЛЬНЫЙ ТЕСТ: RAW PCL (без PJL) ***" + LF_CHAR +
-            "ВИД: 1008, ПИД: 15127" + LF_CHAR +
-            "ИСПОЛЬЗУЕТСЯ ИНТЕРФЕЙС: 1 (Printer Class)" + LF_CHAR +
-            "----------------------------------------" + LF_CHAR +
-            "Если этот текст появляется, значит, принтер не хотел PJL-заголовки." + LF_CHAR +
-            "Мы сделали все возможное на уровне PCL." + LF_CHAR + LF_CHAR + LF_CHAR;
-
-
-        // 2. Отправка текста
-        printCommands.push(...new TextEncoder().encode(textToPrint));
-
-        // 3. Выброс страницы (Form Feed) - инициирует фактическую печать
-        printCommands.push(formFeed);
-
-        const dataBuffer = new Uint8Array(printCommands);
-
-        // --- 4. Кодирование в Base64 и отправка ---
-        const base64Data = arrayBufferToBase64(dataBuffer);
-
-        const command = {
-            action: "USB_IO_COMMAND",
-            parameters: {
-                vid: PRINTER_VID,
-                pid: PRINTER_PID,
-                interface_index: INTERFACE_PRINTER,
-                endpoint_address_out: ENDPOINT_OUT_ADDRESS,
-                endpoint_address_in: ENDPOINT_IN_ADDRESS, // Используется Kotlin для Get Status / Bulk IN
-                data: base64Data
-            }
-        };
+        const button = document.getElementById(`btn-${vid}-${pid}`);
+        button.disabled = true;
+        button.innerText = 'Ожидание...';
 
         try {
-            AndroidBridge.executeCommand(JSON.stringify(command));
-            document.getElementById('native-status').innerText = "Статус: RAW PCL отправлен. Ожидаем печати...";
-            document.getElementById('native-status').style.color = "orange";
-        } catch (e) {
-            console.error("Ошибка вызова Bridge:", e);
-        }
-    }
+            const result = AndroidBridge.executeCommand(JSON.stringify(command));
+            alert(result);
 
-    /**
-     * Активирует специальный режим запроса разрешений, который перебирает все
-     * подключенные USB-устройства и показывает диалог для каждого из них.
-     * Используется для первоначальной настройки, когда VID/PID неизвестны.
-     */
-    function requestUsbSetupPermission() {
-        if (typeof AndroidBridge === 'undefined') {
-            alert("Ошибка: AndroidBridge недоступен.");
-            return;
-        }
-
-        handleNativeResult("Permissions was requested.");
-
-        const setupCommand = {
-            action: "USB_IO_COMMAND",
-            // Параметры vid, pid и data опущены, что активирует режим настройки в Kotlin
-            parameters: {}
-        };
-
-        try {
-            const result = AndroidBridge.executeCommand(JSON.stringify(setupCommand));
-
-            handleNativeResult("Result: " + result);
-
-            // Отображение результата:
-            alert("Результат настройки USB: " + result);
+            // После подтверждения/отказа, обновляем список, чтобы увидеть новый статус
+            fetchUsbDevices();
 
         } catch (e) {
-            handleNativeResult("Error: " + "Критическая ошибка Bridge при запросе разрешений: " + e.message);
-
-            alert("Критическая ошибка Bridge при запросе разрешений: " + e.message);
+            alert("Критическая ошибка: " + e.message);
+            fetchUsbDevices(); // Перезагружаем на случай ошибки
         }
     }
 
-    /**
-     * Принимает результат выполнения команды от Kotlin.
-     * @param result Сообщение об успехе или ошибке.
-     */
-    function handleNativeResult(result) {
-        const statusElement = document.getElementById('native-status');
+    // 3. ОТОБРАЖЕНИЕ СПИСКА В HTML
+    function renderDeviceList(devices) {
+        let html = '<h3>Статус USB-устройств:</h3><ul>';
 
-        statusElement.innerText = "Статус: " + result;
+        devices.forEach(device => {
+            const status = device.hasPermission ? '✅ Разрешено' : '❌ Нет разрешения';
+            const buttonText = device.hasPermission ? 'Подтверждено' : 'Запросить разрешение';
+            const buttonId = `btn-${device.vid}-${device.pid}`;
 
-        // Если сообщение содержит "Error" (например, USB Error), делаем его красным
-        if (result.includes("Error")) {
-            statusElement.style.color = "red";
-            console.error("Нативная ошибка:", result);
-        } else {
-            statusElement.style.color = "green";
-            console.log("Нативный успех:", result);
-        }
+            html += `
+                <li>
+                    <strong>${device.deviceName}</strong> (VID:${device.vid}, PID:${device.pid})
+                    — Статус: ${status}
+                    <button
+                        id="${buttonId}"
+                        onclick="requestPermission(${device.vid}, ${device.pid})"
+                        ${device.hasPermission ? 'disabled' : ''}>
+                        ${buttonText}
+                    </button>
+                </li>
+            `;
+        });
+
+        html += '</ul>';
+        deviceListContainer.innerHTML = html;
     }
+
+    // Запуск при загрузке страницы
+    fetchUsbDevices();
 </script>
 </body>
 </html>
