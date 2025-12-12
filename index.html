@@ -1,15 +1,39 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.4">
-  <style type="text/css">
-  </style>
+    <title>Kiosk Web Content</title>
 </head>
 <body>
-<div>lol 234567</div>
+    <h1>Управление Android из JS</h1>
+
+    <button onclick="sendToast()">Показать Android Toast</button>
+    <button onclick="requestDeviceId()">Запросить ID устройства</button>
+
+    <p id="device-id-display">ID устройства: Ожидание...</p>
+
+    <script>
+        function sendToast() {
+            // Проверяем, существует ли объект AndroidBridge (доступен только в WebView)
+            if (typeof AndroidBridge !== 'undefined') {
+                AndroidBridge.showToast('Успешно вызвано из HTML!');
+            } else {
+                alert('Объект AndroidBridge недоступен (не в WebView).');
+            }
+        }
+
+        function requestDeviceId() {
+            if (typeof AndroidBridge !== 'undefined') {
+                // Прямой вызов Kotlin-метода, который возвращает значение
+                const deviceId = AndroidBridge.getDeviceId();
+                
+                document.getElementById('device-id-display').innerText = 
+                    'ID устройства: ' + deviceId;
+
+            } else {
+                document.getElementById('device-id-display').innerText = 
+                    'ID устройства: Ошибка (Bridge недоступен).';
+            }
+        }
+    </script>
 </body>
 </html>
