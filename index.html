@@ -12,7 +12,7 @@
 <button onclick="printMinimalReceipt()">Напечатать Минимальный Чек (Полностью в JS)</button>
 
 <p id="device-id-display">ID устройства: Ожидание...</p>
-<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!3</p>
+<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!4</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -67,8 +67,14 @@
 
         const PRINTER_VID = 1008;
         const PRINTER_PID = 15127;
-        const INTERFACE_PRINTER = 0;     // ИНТЕРФЕЙС ИЗМЕНЕН НА 0 (Vendor Specific)
+// ИСПОЛЬЗУЕМ ИНТЕРФЕЙС 0 (Vendor Specific)
+        const INTERFACE_PRINTER = 0;
+
+        // ИСХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk OUT 0x01)
         const ENDPOINT_OUT_ADDRESS = 1;
+
+        // ВХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk IN 0x81)
+        const ENDPOINT_IN_ADDRESS = 0x81;
 
         const esc = 27;
         const formFeed = 12; // Команда выброса страницы PCL
@@ -141,8 +147,9 @@
             parameters: {
                 vid: PRINTER_VID,
                 pid: PRINTER_PID,
-                "interface_index": INTERFACE_PRINTER,         // <-- НОВЫЙ ПАРАМЕТР: Класс Printer находится на Индексе 1
-                "endpoint_address_out": ENDPOINT_OUT_ADDRESS,    // <-- НОВЫЙ ПАРАМЕТР: Адрес исходящей точки (0x02)
+                interface_index: INTERFACE_PRINTER,      // <-- НОВЫЙ ИНТЕРФЕЙС
+                endpoint_address_out: ENDPOINT_OUT_ADDRESS, // <-- НОВЫЙ OUT
+                endpoint_address_in: ENDPOINT_IN_ADDRESS,  // <-- НОВЫЙ IN
                 data: base64Data
             }
         };
@@ -168,8 +175,14 @@
 
         const PRINTER_VID = 1008;
         const PRINTER_PID = 15127;
-        const INTERFACE_PRINTER = 0;     // ИНТЕРФЕЙС ИЗМЕНЕН НА 0 (Vendor Specific)
+// ИСПОЛЬЗУЕМ ИНТЕРФЕЙС 0 (Vendor Specific)
+        const INTERFACE_PRINTER = 0;
+
+        // ИСХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk OUT 0x01)
         const ENDPOINT_OUT_ADDRESS = 1;
+
+        // ВХОДЯЩАЯ КОНЕЧНАЯ ТОЧКА ИНТЕРФЕЙСА 0 (Bulk IN 0x81)
+        const ENDPOINT_IN_ADDRESS = 0x81;
 
         const esc = 27;
         const formFeed = 12; // Команда выброса страницы PCL
@@ -227,8 +240,9 @@
             parameters: {
                 vid: PRINTER_VID,
                 pid: PRINTER_PID,
-                "interface_index": INTERFACE_PRINTER,         // <-- НОВЫЙ ПАРАМЕТР: Класс Printer находится на Индексе 1
-                "endpoint_address_out": ENDPOINT_OUT_ADDRESS,    // <-- НОВЫЙ ПАРАМЕТР: Адрес исходящей точки (0x02)
+                interface_index: INTERFACE_PRINTER,      // <-- НОВЫЙ ИНТЕРФЕЙС
+                endpoint_address_out: ENDPOINT_OUT_ADDRESS, // <-- НОВЫЙ OUT
+                endpoint_address_in: ENDPOINT_IN_ADDRESS,  // <-- НОВЫЙ IN
                 data: base64Data
             }
         };
