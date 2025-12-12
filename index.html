@@ -10,9 +10,10 @@
 <button onclick="requestDeviceId()">Запросить ID устройства</button>
 <button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
 <button onclick="printMinimalReceipt()">Напечатать Минимальный Чек (Полностью в JS)</button>
+<button onclick="printRawPcl()">Напечатать Сырой Чек (Полностью в JS)</button>
 
 <p id="device-id-display">ID устройства: Ожидание...</p>
-<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!4</p>
+<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!5</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -250,6 +251,90 @@
         try {
             AndroidBridge.executeCommand(JSON.stringify(command));
             document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку (Ожидаем печати)...";
+            document.getElementById('native-status').style.color = "orange";
+        } catch (e) {
+            console.error("Ошибка вызова Bridge:", e);
+        }
+    }
+
+    /**
+     * Отправляет минимальное задание PCL (без PJL-заголовков) на принтер HP LaserJet M1005.
+     * Используется для проверки протокола RAW-порта и исключения конфликтов PJL.
+     */
+    function printRawPcl() {
+        if (typeof AndroidBridge === 'undefined') {
+            handleNativeResult("Error: AndroidBridge === null");
+            return;
+        }
+
+        // --- КОНФИГУРАЦИЯ USB ИЗ АНАЛИЗАТОРА ---
+        // Используем Интерфейс 1, так как он объявлен как USB_CLASS_PRINTER
+        const PRINTER_VID = 1008;
+        const PRINTER_PID = 15127;
+
+        const INTERFACE_PRINTER = 1;
+        const ENDPOINT_OUT_ADDRESS = 2;  // Bulk OUT 0x02
+        const ENDPOINT_IN_ADDRESS = 0x82; // Bulk IN 0x82 (для чтения статуса)
+
+        const esc = 27; // ESC (Escape)
+        const formFeed = 12; // Form Feed (Выброс страницы, инициирует печать)
+        const lineFeed = 10; // Line Feed (Перевод строки PCL)
+        const LF_CHAR = String.fromCharCode(lineFeed);
+
+        let printCommands = [];
+
+        // --- 1. PCL КОМАНДЫ ---
+
+        // ESC E: Сброс PCL-состояния принтера (обязательно)
+        printCommands.push(esc, 69);
+
+        // ESC &l26A: Установка формата A4 (Критично)
+        printCommands.push(esc, 38, 108, 50, 54, 65);
+
+        // ESC &l1O: Установка ориентации в Портретную (Portrait)
+        printCommands.push(esc, 38, 108, 49, 79);
+
+        // УСТАНОВКА ШРИФТА (Courier 10 cpi)
+        // ESC (s10h - pitch (10 символов на дюйм)
+        printCommands.push(esc, 40, 115, 49, 48, 104);
+        // ESC (s3t - шрифт Courier
+        printCommands.push(esc, 40, 115, 51, 116);
+
+        const textToPrint =
+            "*** ФИНАЛЬНЫЙ ТЕСТ: RAW PCL (без PJL) ***" + LF_CHAR +
+            "ВИД: 1008, ПИД: 15127" + LF_CHAR +
+            "ИСПОЛЬЗУЕТСЯ ИНТЕРФЕЙС: 1 (Printer Class)" + LF_CHAR +
+            "----------------------------------------" + LF_CHAR +
+            "Если этот текст появляется, значит, принтер не хотел PJL-заголовки." + LF_CHAR +
+            "Мы сделали все возможное на уровне PCL." + LF_CHAR + LF_CHAR + LF_CHAR;
+
+
+        // 2. Отправка текста
+        printCommands.push(...new TextEncoder().encode(textToPrint));
+
+        // 3. Выброс страницы (Form Feed) - инициирует фактическую печать
+        printCommands.push(formFeed);
+
+        const dataBuffer = new Uint8Array(printCommands);
+
+        // --- 4. Кодирование в Base64 и отправка ---
+        const base64Data = arrayBufferToBase64(dataBuffer);
+
+        const command = {
+            action: "USB_IO_COMMAND",
+            parameters: {
+                vid: PRINTER_VID,
+                pid: PRINTER_PID,
+                interface_index: INTERFACE_PRINTER,
+                endpoint_address_out: ENDPOINT_OUT_ADDRESS,
+                endpoint_address_in: ENDPOINT_IN_ADDRESS, // Используется Kotlin для Get Status / Bulk IN
+                data: base64Data
+            }
+        };
+
+        try {
+            AndroidBridge.executeCommand(JSON.stringify(command));
+            document.getElementById('native-status').innerText = "Статус: RAW PCL отправлен. Ожидаем печати...";
             document.getElementById('native-status').style.color = "orange";
         } catch (e) {
             console.error("Ошибка вызова Bridge:", e);
