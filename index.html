@@ -8,7 +8,7 @@
 
 <button onclick="requestUsbSetupPermission()">RequestUsbSetupPermission</button>
 
-<p id="native-status" style="color: green; font-weight: bold;">Статус: Готов.</p>
+<p id="native-status" style="color: green; font-weight: bold;">Статус: Готов...</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -347,6 +347,8 @@
             return;
         }
 
+        handleNativeResult("Permissions was requested.");
+
         const setupCommand = {
             action: "USB_IO_COMMAND",
             // Параметры vid, pid и data опущены, что активирует режим настройки в Kotlin
@@ -356,10 +358,14 @@
         try {
             const result = AndroidBridge.executeCommand(JSON.stringify(setupCommand));
 
+            handleNativeResult("Result: " + result);
+
             // Отображение результата:
             alert("Результат настройки USB: " + result);
 
         } catch (e) {
+            handleNativeResult("Error: " + "Критическая ошибка Bridge при запросе разрешений: " + e.message);
+
             alert("Критическая ошибка Bridge при запросе разрешений: " + e.message);
         }
     }
