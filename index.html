@@ -9,9 +9,10 @@
 <button onclick="sendToast()">Показать Android Toast</button>
 <button onclick="requestDeviceId()">Запросить ID устройства</button>
 <button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
+<button onclick="printMinimalReceipt()">Напечатать Минимальный Чек (Полностью в JS)</button>
 
 <p id="device-id-display">ID устройства: Ожидание...</p>
-<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!!!!!</p>
+<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -150,7 +151,89 @@
             console.error("Ошибка вызова Bridge:", e);
         }
     }
-    
+
+    /**
+     * Отправляет минимальное задание PJL/PCL на принтер HP LaserJet M1005.
+     * Используется для быстрой диагностики, исключающей ошибки форматирования шрифта.
+     */
+    function printMinimalReceipt() {
+        if (typeof AndroidBridge === 'undefined') {
+            handleNativeResult("Error: AndroidBridge === null");
+            return;
+        }
+
+        const PRINTER_VID = 1008;
+        const PRINTER_PID = 15127;
+
+        const esc = 27;
+        const formFeed = 12; // Команда выброса страницы PCL
+
+        // UEL (Universal Exit Language): ESC %-12345X
+        const UEL = new TextEncoder().encode(String.fromCharCode(esc) + "%-12345X");
+
+        let printCommands = [];
+
+        // --- 1. НАЧАЛО ЗАДАНИЯ (PJL Header) ---
+        printCommands.push(...UEL);
+        printCommands.push(...new TextEncoder().encode("@PJL JOB\r\n"));
+
+        // 2. УКАЗАНИЕ ЯЗЫКА (Переключение в режим PCL)
+        printCommands.push(...new TextEncoder().encode("@PJL ENTER LANGUAGE=PCL\r\n"));
+
+        // --- 3. PCL КОМАНДЫ ---
+
+        // ESC E: Сброс PCL-состояния принтера (обязательно)
+        printCommands.push(esc, 69);
+
+        // ESC &l26A: Установка формата A4 (Критично, если принтер ждет размер страницы)
+        // 26 - это код для A4
+        printCommands.push(esc, 38, 108, 50, 54, 65);
+
+        const textToPrint =
+            "*** МИНИМАЛЬНЫЙ ТЕСТ: HP LaserJet M1005 ***\r\n" +
+            "VID: 1008, PID: 15127\r\n" +
+            "----------------------------------------\r\n" +
+            "Если вы видите этот текст, то PJL/PCL РАБОТАЕТ! \r\n" +
+            "Следующий шаг - настройка шрифтов.\r\n\r\n\r\n";
+
+
+        // 4. Отправка текста (Используем \r\n, так как нет конфликтов шрифтов)
+        printCommands.push(...new TextEncoder().encode(textToPrint));
+
+        // 5. Выброс страницы (Form Feed) - инициирует фактическую печать
+        printCommands.push(formFeed);
+
+        // --- 6. КОНЕЦ ЗАДАНИЯ (PJL End) ---
+        // Переключение из PCL обратно в PJL
+        printCommands.push(...UEL);
+        // Конец задания PJL
+        printCommands.push(...new TextEncoder().encode("@PJL EOJ\r\n"));
+        // Двойное завершение
+        printCommands.push(...UEL);
+
+        const dataBuffer = new Uint8Array(printCommands);
+
+        // --- 7. Кодирование в Base64 и отправка ---
+        const base64Data = arrayBufferToBase64(dataBuffer);
+
+        const command = {
+            action: "USB_IO_COMMAND",
+            parameters: {
+                vid: PRINTER_VID,
+                pid: PRINTER_PID,
+                data: base64Data
+            }
+        };
+
+        try {
+            AndroidBridge.executeCommand(JSON.stringify(command));
+            document.getElementById('native-status').innerText = "Статус: Команда отправлена на обработку (Ожидаем печати)...";
+            document.getElementById('native-status').style.color = "orange";
+        } catch (e) {
+            console.error("Ошибка вызова Bridge:", e);
+        }
+    }
+
     /**
      * Принимает результат выполнения команды от Kotlin.
      * @param result Сообщение об успехе или ошибке.
