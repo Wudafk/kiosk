@@ -6,7 +6,7 @@
 <body>
 <h1>Инициализация Киоска</h1>
 <div id="usb-device-list">
-    <p>Загрузка статуса USB...</p>
+    <p>Загрузка статуса USB...!</p>
 </div>
 <script>
     const deviceListContainer = document.getElementById('usb-device-list');
@@ -28,31 +28,22 @@
             parameters: { action_type: "GET_DEVICES" }
         };
 
+        // !!! НОВЫЙ ВЫЗОВ: Передаем имя функции-обработчика !!!
+        AndroidBridge.executeCommandAsync(JSON.stringify(command), "handleUsbResult");
+    }
+
+    // JS: Функция, которая получит ответ от Kotlin
+    function handleUsbResult(resultString) {
+        if (!resultString || resultString.startsWith("USB_ERROR:")) {
+            deviceListContainer.innerHTML = `<p style='color: red;'>Ошибка Bridge/Kotlin: ${resultString || 'Пустой ответ'}</p>`;
+            return;
+        }
+
         try {
-            const resultString = AndroidBridge.executeCommand(JSON.stringify(command));
-
-            if (!resultString) {
-                // Если Kotlin вернул null или пустую строку
-                deviceListContainer.innerHTML = "<p style='color: red;'>Ошибка: Kotlin не вернул данные (null/пусто).</p>";
-                return;
-            }
-
-            // Если Kotlin вернул JSON-строку
             const devices = JSON.parse(resultString);
-
-            // Если devices - это массив, вызываем отрисовку
-            if (Array.isArray(devices)) {
-                renderDeviceList(devices);
-            } else if (devices && devices.error) {
-                // Обработка ошибки, если мы вернули JSON-ошибку из Kotlin
-                deviceListContainer.innerHTML = `<p style='color: red;'>Ошибка в Kotlin: ${devices.error}</p>`;
-            } else {
-                // Отобразить сырую строку для отладки, если не JSON
-                deviceListContainer.innerHTML = resultString;
-            }
-
+            renderDeviceList(devices);
         } catch (e) {
-            deviceListContainer.innerHTML = `<p style='color: red;'>Ошибка Bridge/JSON-парсинга: ${e.message}</p>`;
+            deviceListContainer.innerHTML = `<p style='color: red;'>Ошибка парсинга JSON: ${e.message}</p>`;
         }
     }
 
