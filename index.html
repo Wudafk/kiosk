@@ -8,6 +8,7 @@
 
     <button onclick="sendToast()">Показать Android Toast</button>
     <button onclick="requestDeviceId()">Запросить ID устройства</button>
+    <button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
 
     <p id="device-id-display">ID устройства: Ожидание...</p>
 
@@ -34,6 +35,48 @@
                     'ID устройства: Ошибка (Bridge недоступен).';
             }
         }
+        
+    function printNewReceipt() {
+        if (typeof AndroidBridge === 'undefined') return;
+
+        // 1. КОДИРОВАНИЕ КОМАНДЫ ESC/POS В JAVASCRIPT
+        //   - 27, 69: Включить жирный шрифт (ESC E)
+        //   - 10: Перевод строки
+        //   - 27, 100, 4: Подать бумагу и отрезать (ESC d 4)
+        
+        const esc = 27;
+        const printCommands = new Uint8Array([
+            esc, 69, // Включить жирный шрифт
+            ...new TextEncoder().encode("ЗАГОЛОВОК ЧЕКА\n"),
+            esc, 70, // Выключить жирный шрифт
+            ...new TextEncoder().encode("Товар: 100.00 руб.\n"),
+            10, 10, 10, // 3 пустые строки
+            esc, 100, 4 // Команда отрезки бумаги
+        ]);
+
+        // 2. ПРЕОБРАЗОВАНИЕ БАЙТОВ В BASE64 (для передачи через JSON)
+        // Нам нужна библиотека Base64 в JS (или используем встроенные методы, если возможно)
+        // Для простоты, допустим, у нас есть функция arrayBufferToBase64:
+        const base64Data = btoa(String.fromCharCode(...printCommands)); 
+        // (btoa/atob работает только с 8-битными символами, для сложных байтов лучше использовать специализированную JS библиотеку Base64)
+
+        // 3. Формирование универсального JSON-объекта команды
+        const command = {
+            action: "USB_IO_COMMAND", // Ваш универсальный action
+            parameters: {
+                vid: 1155,       // VID принтера
+                pid: 22338,      // PID принтера
+                data: base64Data // Байт-код команды в Base64
+            }
+        };
+
+        try {
+            AndroidBridge.executeCommand(JSON.stringify(command));
+            console.log("Команда печати отправлена через универсальный USB-интерфейс.");
+        } catch (e) {
+            console.error("Ошибка вызова Bridge:", e);
+        }
+    }
     </script>
 </body>
 </html>
