@@ -6,14 +6,9 @@
 <body>
 <h1>Управление Android из JS</h1>
 
-<button onclick="sendToast()">Показать Android Toast</button>
-<button onclick="requestDeviceId()">Запросить ID устройства</button>
-<button onclick="printNewReceipt()">Напечатать Чек (Полностью в JS)</button>
-<button onclick="printMinimalReceipt()">Напечатать Минимальный Чек (Полностью в JS)</button>
-<button onclick="printRawPcl()">Напечатать Сырой Чек (Полностью в JS)</button>
+<button onclick="requestUsbSetupPermission()">RequestUsbSetupPermission</button>
 
-<p id="device-id-display">ID устройства: Ожидание...</p>
-<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!5</p>
+<p id="native-status" style="color: green; font-weight: bold;">Статус: Готов.</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -338,6 +333,34 @@
             document.getElementById('native-status').style.color = "orange";
         } catch (e) {
             console.error("Ошибка вызова Bridge:", e);
+        }
+    }
+
+    /**
+     * Активирует специальный режим запроса разрешений, который перебирает все
+     * подключенные USB-устройства и показывает диалог для каждого из них.
+     * Используется для первоначальной настройки, когда VID/PID неизвестны.
+     */
+    function requestUsbSetupPermission() {
+        if (typeof AndroidBridge === 'undefined') {
+            alert("Ошибка: AndroidBridge недоступен.");
+            return;
+        }
+
+        const setupCommand = {
+            action: "USB_IO_COMMAND",
+            // Параметры vid, pid и data опущены, что активирует режим настройки в Kotlin
+            parameters: {}
+        };
+
+        try {
+            const result = AndroidBridge.executeCommand(JSON.stringify(setupCommand));
+
+            // Отображение результата:
+            alert("Результат настройки USB: " + result);
+
+        } catch (e) {
+            alert("Критическая ошибка Bridge при запросе разрешений: " + e.message);
         }
     }
 
