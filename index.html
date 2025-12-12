@@ -12,7 +12,7 @@
 <button onclick="printMinimalReceipt()">Напечатать Минимальный Чек (Полностью в JS)</button>
 
 <p id="device-id-display">ID устройства: Ожидание...</p>
-<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!</p>
+<p id="native-status" style="color: red; font-weight: bold;">Статус: Готов!2</p>
 
 <script>
     const PRINTER_VID = 1008;
@@ -139,6 +139,8 @@
             parameters: {
                 vid: PRINTER_VID,
                 pid: PRINTER_PID,
+                "interface_index": 1,         // <-- НОВЫЙ ПАРАМЕТР: Класс Printer находится на Индексе 1
+                "endpoint_address_out": 2,    // <-- НОВЫЙ ПАРАМЕТР: Адрес исходящей точки (0x02)
                 data: base64Data
             }
         };
@@ -221,6 +223,8 @@
             parameters: {
                 vid: PRINTER_VID,
                 pid: PRINTER_PID,
+                "interface_index": 1,         // <-- НОВЫЙ ПАРАМЕТР: Класс Printer находится на Индексе 1
+                "endpoint_address_out": 2,    // <-- НОВЫЙ ПАРАМЕТР: Адрес исходящей точки (0x02)
                 data: base64Data
             }
         };
