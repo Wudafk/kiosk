@@ -17,6 +17,7 @@
     // Функция для преобразования строки (если Kotlin возвращает toString())
     // В реальном приложении здесь должен быть JSON.parse(kotlinResult)
     function parseKotlinList(str) {
+        
         return JSON.parse(str);
         // Заглушка, если нет JSON-библиотеки в Kotlin
         // Предполагаем, что вам нужно будет настроить парсинг под ваш строковый формат.
@@ -33,6 +34,8 @@
 
         try {
             const resultString = AndroidBridge.executeCommand(JSON.stringify(command));
+        deviceListContainer.innerHTML = resultString;
+            return;
             // В идеале: const devices = JSON.parse(resultString);
             const devices = parseKotlinList(resultString); // Временно
             renderDeviceList(devices);
