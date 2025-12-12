@@ -39,47 +39,109 @@
             }
         }
         
-    function printNewReceipt() {
-        if (typeof AndroidBridge === 'undefined') return;
+    // function printNewReceipt() {
+    //     if (typeof AndroidBridge === 'undefined') return;
 
-        // 1. КОДИРОВАНИЕ КОМАНДЫ ESC/POS В JAVASCRIPT
-        //   - 27, 69: Включить жирный шрифт (ESC E)
-        //   - 10: Перевод строки
-        //   - 27, 100, 4: Подать бумагу и отрезать (ESC d 4)
+    //     // 1. КОДИРОВАНИЕ КОМАНДЫ ESC/POS В JAVASCRIPT
+    //     //   - 27, 69: Включить жирный шрифт (ESC E)
+    //     //   - 10: Перевод строки
+    //     //   - 27, 100, 4: Подать бумагу и отрезать (ESC d 4)
         
-        const esc = 27;
-        const printCommands = new Uint8Array([
-            esc, 69, // Включить жирный шрифт
-            ...new TextEncoder().encode("ЗАГОЛОВОК ЧЕКА\n"),
-            esc, 70, // Выключить жирный шрифт
-            ...new TextEncoder().encode("Товар: 100.00 руб.\n"),
-            10, 10, 10, // 3 пустые строки
-            esc, 100, 4 // Команда отрезки бумаги
-        ]);
+    //     const esc = 27;
+    //     const printCommands = new Uint8Array([
+    //         esc, 69, // Включить жирный шрифт
+    //         ...new TextEncoder().encode("ЗАГОЛОВОК ЧЕКА\n"),
+    //         esc, 70, // Выключить жирный шрифт
+    //         ...new TextEncoder().encode("Товар: 100.00 руб.\n"),
+    //         10, 10, 10, // 3 пустые строки
+    //         esc, 100, 4 // Команда отрезки бумаги
+    //     ]);
 
-        // 2. ПРЕОБРАЗОВАНИЕ БАЙТОВ В BASE64 (для передачи через JSON)
-        // Нам нужна библиотека Base64 в JS (или используем встроенные методы, если возможно)
-        // Для простоты, допустим, у нас есть функция arrayBufferToBase64:
-        const base64Data = btoa(String.fromCharCode(...printCommands)); 
-        // (btoa/atob работает только с 8-битными символами, для сложных байтов лучше использовать специализированную JS библиотеку Base64)
+    //     // 2. ПРЕОБРАЗОВАНИЕ БАЙТОВ В BASE64 (для передачи через JSON)
+    //     // Нам нужна библиотека Base64 в JS (или используем встроенные методы, если возможно)
+    //     // Для простоты, допустим, у нас есть функция arrayBufferToBase64:
+    //     const base64Data = btoa(String.fromCharCode(...printCommands)); 
+    //     // (btoa/atob работает только с 8-битными символами, для сложных байтов лучше использовать специализированную JS библиотеку Base64)
 
-        // 3. Формирование универсального JSON-объекта команды
-        const command = {
-            action: "USB_IO_COMMAND", // Ваш универсальный action
-            parameters: {
-                vid: PRINTER_VID,       // VID принтера
-                pid: PRINTER_PID,      // PID принтера
-                data: base64Data // Байт-код команды в Base64
-            }
-        };
+    //     // 3. Формирование универсального JSON-объекта команды
+    //     const command = {
+    //         action: "USB_IO_COMMAND", // Ваш универсальный action
+    //         parameters: {
+    //             vid: PRINTER_VID,       // VID принтера
+    //             pid: PRINTER_PID,      // PID принтера
+    //             data: base64Data // Байт-код команды в Base64
+    //         }
+    //     };
 
-        try {
-            AndroidBridge.executeCommand(JSON.stringify(command));
-            console.log("Команда печати отправлена через универсальный USB-интерфейс.");
-        } catch (e) {
-            console.error("Ошибка вызова Bridge:", e);
-        }
+    //     try {
+    //         AndroidBridge.executeCommand(JSON.stringify(command));
+    //         console.log("Команда печати отправлена через универсальный USB-интерфейс.");
+    //     } catch (e) {
+    //         console.error("Ошибка вызова Bridge:", e);
+    //     }
+    // }
+
+// ВАЖНАЯ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ БАЙТОВ
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        // Мы используем String.fromCharCode для корректной работы с сырыми байтами
+        binary += String.fromCharCode(bytes[i]);
     }
+    // Кодируем полученную строку в Base64
+    return btoa(binary);
+}
+
+function printNewReceipt() {
+    if (typeof AndroidBridge === 'undefined') return;
+
+    // --- 1. Формирование команд PCL ---
+    const esc = 27;
+    const formFeed = 12; // Команда выброса страницы (печать)
+
+    const textToPrint = 
+        "*** ТЕСТОВАЯ ПЕЧАТЬ HP LASERJET M1005 ***\r\n" +
+        "Устройство VID: 1008, PID: 15127\r\n" +
+        "PCL-команды успешно отправлены через Kiosk Bridge.\r\n" +
+        "---------------------------------------\r\n" +
+        "Если вы видите этот текст, то универсальный USB I/O работает!\r\n\r\n";
+
+    let printCommands = [];
+
+    // 1. Сброс принтера (ESC E)
+    printCommands.push(esc, 69); 
+    
+    // 2. Отправка текста (Важно: PCL требует \r\n для корректного перевода строки)
+    const textBytes = new TextEncoder().encode(textToPrint);
+    printCommands.push(...textBytes);
+    
+    // 3. Выброс страницы (Form Feed) - инициирует фактическую печать
+    printCommands.push(formFeed);
+
+    const dataBuffer = new Uint8Array(printCommands);
+
+    // --- 2. Кодирование в Base64 ---
+    const base64Data = arrayBufferToBase64(dataBuffer); 
+    
+    // --- 3. Формирование универсального JSON-объекта команды ---
+    const command = {
+        action: "USB_IO_COMMAND", // Ваш универсальный action
+        parameters: {
+            vid: PRINTER_VID,
+            pid: PRINTER_PID,
+            data: base64Data // Байты PCL-команд в Base64
+        }
+    };
+
+    try {
+        AndroidBridge.executeCommand(JSON.stringify(command));
+        console.log("Команда печати PCL отправлена.");
+    } catch (e) {
+        console.error("Ошибка вызова Bridge:", e);
+    }
+}
     </script>
 </body>
 </html>
