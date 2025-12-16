@@ -5,7 +5,7 @@
 </head>
 <body>
 <h1>Инициализация Киоска</h1>
-<h1 id="device-id"></h1>
+<h1 id="device-id">DeviceId</h1>
 <div id="usb-device-list">
     <p>Загрузка статуса USB...</p>
 </div>
@@ -134,7 +134,7 @@
                 const kioskData = JSON.parse(jsonString);
 
                 const deviceIdElement = document.getElementById('device-id');
-                deviceIdElement.innerText = kioskData.device_id;
+                deviceIdElement.innerHTML = "DeviceId: " + kioskData.device_id;
 
                 // // 3. Отображение данных
                 // let htmlOutput = '<h2>Kiosk Data (Получено с Android):</h2>';
