@@ -121,8 +121,8 @@
     }
 
     function loadKioskData() {
-        const outputElement = document.getElementById('kiosk-data-output');
-        outputElement.innerHTML = 'Загрузка...';
+        // const outputElement = document.getElementById('kiosk-data-output');
+        // outputElement.innerHTML = 'Загрузка...';
 
         // Проверяем, доступен ли нативный мост
         if (typeof AndroidBridge !== 'undefined' && AndroidBridge.getKioskData) {
