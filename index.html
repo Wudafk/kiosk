@@ -135,14 +135,14 @@
                 // 3. Отображение данных
                 let htmlOutput = '<h2>Kiosk Data (Получено с Android):</h2>';
                 htmlOutput += `<p><b>Device ID:</b> ${kioskData.device_id}</p>`;
-                htmlOutput += `<p><b>FCM Token:</b> ${kioskData.fcm_token}</p>`;
-                htmlOutput += `<p><b>Last Check:</b> ${new Date(kioskData.last_check).toLocaleString()}</p>`;
+                // htmlOutput += `<p><b>FCM Token:</b> ${kioskData.fcm_token}</p>`;
+                // htmlOutput += `<p><b>Last Check:</b> ${new Date(kioskData.last_check).toLocaleString()}</p>`;
 
                 htmlOutput += '<h3>USB Devices:</h3>';
                 if (kioskData.usb_devices && kioskData.usb_devices.length > 0) {
                     htmlOutput += '<ul>';
                     kioskData.usb_devices.forEach(device => {
-                        htmlOutput += `<li>Name: ${device.name}, VID: ${device.vid}, PID: ${device.pid}</li>`;
+                        htmlOutput += `<li>Name: ${device.name}, VID: ${device.vendor_id}, PID: ${device.product_id}</li>`;
                     });
                     htmlOutput += '</ul>';
                 } else {
