@@ -6,7 +6,12 @@
 <body>
 <h1>Инициализация Киоска</h1>
 <div id="usb-device-list">
-    <p>Загрузка статуса USB...?!</p>
+    <p>Загрузка статуса USB...</p>
+</div>
+
+<h1>Список USB-устройств:</h1>
+<div id="kiosk-data-output" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;">
+    Загрузка списка USB-устройств...
 </div>
 <script>
     const deviceListContainer = document.getElementById('usb-device-list');
@@ -114,8 +119,52 @@
         fetchUsbDevices();
     }
 
+    function loadKioskData() {
+        const outputElement = document.getElementById('kiosk-data-output');
+        outputElement.innerHTML = 'Загрузка...';
+
+        // Проверяем, доступен ли нативный мост
+        if (typeof AndroidBridge !== 'undefined' && AndroidBridge.getKioskData) {
+            try {
+                // 1. Вызов нативного метода и получение JSON-строки
+                const jsonString = AndroidBridge.getKioskData();
+
+                // 2. Парсинг JSON
+                const kioskData = JSON.parse(jsonString);
+
+                // 3. Отображение данных
+                let htmlOutput = '<h2>Kiosk Data (Получено с Android):</h2>';
+                htmlOutput += `<p><b>Device ID:</b> ${kioskData.device_id}</p>`;
+                htmlOutput += `<p><b>FCM Token:</b> ${kioskData.fcm_token}</p>`;
+                htmlOutput += `<p><b>Last Check:</b> ${new Date(kioskData.last_check).toLocaleString()}</p>`;
+
+                htmlOutput += '<h3>USB Devices:</h3>';
+                if (kioskData.usb_devices && kioskData.usb_devices.length > 0) {
+                    htmlOutput += '<ul>';
+                    kioskData.usb_devices.forEach(device => {
+                        htmlOutput += `<li>Name: ${device.name}, VID: ${device.vid}, PID: ${device.pid}</li>`;
+                    });
+                    htmlOutput += '</ul>';
+                } else {
+                    htmlOutput += '<p>USB-устройства не найдены.</p>';
+                }
+
+                outputElement.innerHTML = htmlOutput;
+
+            } catch (e) {
+                outputElement.innerHTML =
+                    `ОШИБКА: Не удалось вызвать метод или распарсить JSON. Сообщение: ${e.message}`;
+            }
+        } else {
+            outputElement.innerHTML =
+                'ОШИБКА: Объект AndroidBridge или метод getKioskData не найдены.';
+        }
+    }
+
+
     // Запуск при загрузке страницы
     fetchUsbDevices();
+    loadKioskData();
 </script>
 </body>
 </html>
